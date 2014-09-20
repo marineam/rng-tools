@@ -20,6 +20,7 @@ rngd
 rngd.8
 rngtest
 rngtest.1
+rngd.service
 
 .dotest
 autom4te.cache

@@ -32,6 +32,16 @@ AC_ARG_WITH([libgcrypt],
 	[with_libgcrypt=check]
 )
 
+AC_ARG_WITH([systemdsystemunitdir],
+	[AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files])],,
+	[with_systemdsystemunitdir=auto]
+)
+
+AC_ARG_WITH([udevrulesdir],
+	[AS_HELP_STRING([--with-udevrulesdir=DIR], [Directory for udev rules files])],,
+	[with_udevrulesdir=auto]
+)
+
 dnl Make sure anyone changing configure.ac/Makefile.am has a clue
 AM_MAINTAINER_MODE
 
@@ -39,6 +49,7 @@ dnl Checks for programs
 AC_PROG_CC
 AC_PROG_RANLIB
 AC_PROG_GCC_TRADITIONAL
+PKG_PROG_PKG_CONFIG
 
 dnl Checks for header files.
 dnl AC_HEADER_STDC
@@ -82,6 +93,48 @@ AS_IF(
 	]
 )
 
+dnl ----------------------------------------------------------------
+dnl Check for systemd and udev, based on recommendation in daemon(7)
+dnl ----------------------------------------------------------------
+
+AS_IF([test "x$with_systemdsystemunitdir" = "xyes" -o "x$with_systemdsystemunitdir" = "xauto"], [
+	AC_MSG_CHECKING([systemd system unit directory])
+	def_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)
+
+	AS_IF([test "x$def_systemdsystemunitdir" = "x"],
+		[AS_IF([test "x$with_systemdsystemunitdir" = "xyes"],
+			[AC_MSG_ERROR([systemd support requested but pkg-config unable to query systemd package])])
+		with_systemdsystemunitdir=no],
+		[with_systemdsystemunitdir="$def_systemdsystemunitdir"])
+
+	AC_MSG_RESULT([$with_systemdsystemunitdir])
+])
+AS_IF([test "x$with_systemdsystemunitdir" != "xno"],
+	[AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])])
+AM_CONDITIONAL([HAVE_SYSTEMD], [test "x$with_systemdsystemunitdir" != "xno"])
+
+AS_IF([test "x$with_systemdsystemunitdir" == "xno"],
+	[AS_IF([test "x$with_udevrulesdir" = "xyes"],
+		[AC_MSG_ERROR([systemd is required by the udev rules])],
+		[with_udevrulesdir=no]
+	)]
+)
+AS_IF([test "x$with_udevrulesdir" = "xyes" -o "x$with_udevrulesdir" = "xauto"], [
+	AC_MSG_CHECKING([udev rules directory])
+	def_udevdir=$($PKG_CONFIG --variable=udevdir udev)
+
+	AS_IF([test "x$def_udevdir" = "x"],
+		[AS_IF([test "x$with_udevrulesdir" = "xyes"],
+			[AC_MSG_ERROR([udev support requested but pkg-config unable to query udev package])])
+		with_udevrulesdir=no],
+		[with_udevrulesdir="$def_udevdir/rules.d"])
+
+	AC_MSG_RESULT([$with_udevrulesdir])
+])
+AS_IF([test "x$with_udevrulesdir" != "xno"],
+	[AC_SUBST([udevrulesdir], [$with_udevrulesdir])])
+AM_CONDITIONAL([HAVE_UDEV], [test "x$with_udevrulesdir" != "xno"])
+
 dnl -----------------
 dnl Configure options
 dnl -----------------
@@ -92,5 +145,9 @@ dnl --------------------------
 dnl autoconf output generation
 dnl --------------------------
 
-AC_CONFIG_FILES([Makefile contrib/Makefile rngd.8 rngtest.1])
+AC_CONFIG_FILES([Makefile
+		 contrib/Makefile
+		 rngd.8
+		 rngtest.1
+		 rngd.service])
 AC_OUTPUT

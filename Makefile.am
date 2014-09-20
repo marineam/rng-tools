@@ -19,6 +19,12 @@ rngtest_LDADD	= librngd.a
 
 librngd_a_SOURCES = fips.h fips.c
 
+DISTCHECK_CONFIGURE_FLAGS = \
+	--with-systemdsystemunitdir=$$dc_install_base/$(systemdsystemunitdir)
+
+if HAVE_SYSTEMD
+systemdsystemunit_DATA = rngd.service
+endif
 
 EXTRA_DIST	= autogen.sh
 
